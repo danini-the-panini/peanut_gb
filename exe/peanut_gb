@@ -1,3 +1,123 @@
 #!/usr/bin/env ruby
 
+require "thread"
+
 require "peanut_gb"
+
+class MyEmu < PeanutGb::Emulator
+  PALETTE = ['██', '▓▓', '▒▒', '░░']
+  
+  def initialize(rom_path)
+    @rom = File.new(rom_path, "r")
+    @input_q = Thread::Queue.new
+    @s = Mutex.new
+    super()
+  end
+
+  def rom_read(addr)
+    @rom.pos = addr
+    @rom.getbyte
+  end
+
+  def cart_ram_read(addr)
+    puts "cart_ram_read(#{addr.inspect})"
+    0
+  end
+
+  def cart_ram_write(addr, val)
+    puts "cart_ram_write(#{addr.inspect}, #{val.inspect})"
+  end
+
+  def error(e, addr)
+    puts "error(#{e.inspect}, #{addr.inspect})"
+  end
+
+  def lcd_draw_line(pixels, line)
+    print("\e[#{line+1};1H")
+    print(pixels.map { |px| PALETTE[px & 3] }.join)
+    print("\e[E")
+  end
+
+  def audio_read(addr)
+    puts "audio_read(#{addr.inspect})"
+    0
+  end
+
+  def audio_write(addr, val)
+    puts "audio_write(#{addr.inspect}, #{val.inspect})"
+  end
+
+  def serial_tx(tx)
+  end
+
+  def serial_rx
+    nil # no connection
+  end
+
+  def bootrom_read(addr)
+    puts "bootrom_read(#{addr.inspect})"
+    0
+  end
+
+  def run
+    system("stty raw -echo")
+    at_exit do
+      system("stty -raw echo")
+    end
+    @running = true
+    input_thread
+    while @s.synchronize { @running }
+      buttons = [false]*8
+      until @input_q.empty?
+        case @input_q.pop
+          when :a          then buttons[0] = true
+          when :b          then buttons[1] = true
+          when :select     then buttons[2] = true
+          when :start      then buttons[3] = true
+          when :right      then buttons[4] = true
+          when :left       then buttons[5] = true
+          when :up         then buttons[6] = true
+          when :down       then buttons[7] = true
+          when :reset      then reset
+          when :interlace  then self.interlace = !interlace
+          when :frame_skip then self.frame_skip = !frame_skip
+        end
+      end
+      set_buttons(buttons)
+      run_frame
+      print("\e[1;1H")
+    end
+    @input_thread.join
+  end
+
+  def input_thread
+    @input_thread = Thread.new do
+      while @s.synchronize { @running }
+        str = STDIN.getc
+        case str
+          when "x"      then @input_q << :a
+          when "z"      then @input_q << :b
+          when "\r"     then @input_q << :start
+          when "\u007F" then @input_q << :select
+          when "C"      then @input_q << :right
+          when "D"      then @input_q << :left
+          when "A"      then @input_q << :up
+          when "B"      then @input_q << :down
+          when "q"      then @s.synchronize { @running = false }
+          when "r"      then @input_q << :reset
+          when "i"      then @input_q << :interlace
+          when "o"      then @input_q << :frame_skip
+        end
+      end
+    end
+  end
+end
+
+if ARGV.count != 1
+  puts "usage: peanut_gb ROM"
+  exit(1)
+end
+
+emu = MyEmu.new(ARGV[0])
+emu.rtc = Time.now
+emu.run

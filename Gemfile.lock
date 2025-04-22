@@ -1,0 +1,25 @@
+PATH
+  remote: .
+  specs:
+    peanut_gb (0.1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.25.5)
+    rake (13.2.1)
+    rake-compiler (1.3.0)
+      rake
+
+PLATFORMS
+  arm64-darwin-24
+  ruby
+
+DEPENDENCIES
+  minitest (~> 5.16)
+  peanut_gb!
+  rake (~> 13.0)
+  rake-compiler
+
+BUNDLED WITH
+   2.6.3

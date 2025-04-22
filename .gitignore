@@ -11,3 +11,5 @@
 *.o
 *.a
 mkmf.log
+compile_commands.json
+/.cache/
