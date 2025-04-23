@@ -95,8 +95,8 @@ class MyEmu < PeanutGb::Emulator
       while @s.synchronize { @running }
         str = STDIN.getc
         case str
-          when "x"      then @input_q << :a
-          when "z"      then @input_q << :b
+          when "z"      then @input_q << :a
+          when "x"      then @input_q << :b
           when "\r"     then @input_q << :start
           when "\u007F" then @input_q << :select
           when "C"      then @input_q << :right
